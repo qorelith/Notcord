@@ -1,0 +1,5 @@
+customtkinter>=6.0.0
+requests>=2.31.0
+pillow>=10.0.0
+discord-protos>=1.2.0
+cryptography>=41.0.0
