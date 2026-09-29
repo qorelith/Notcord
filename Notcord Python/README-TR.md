@@ -1,5 +1,5 @@
 # Notcord 🚀
-> **Discord Mesaj ve Favori GIF Temizleyici / Discord Message & Favorite GIF Purger**  
+> **Discord Mesaj & Favori GIF Ve Daha Fazlasını Temizleme Aracı**  
 > **Geliştirici / Author:** **Qorelith**
 
 ---
