@@ -5,7 +5,8 @@
 ---
 
 <p align="center">
-  <img src="assets/logo.png" width="160" alt="Notcord Logo" />
+  <img src="<img width="494" height="88" alt="image" src="https://github.com/user-attachments/assets/bb539238-f8fd-4b57-a2a8-58441ba68ed6" />
+" width="160" alt="Notcord Logo" />
 </p>
 
 ## 🌟 Features
