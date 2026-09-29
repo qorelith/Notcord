@@ -1,11 +1,12 @@
 # Notcord 🚀
 > **Discord Message & Favorite GIF And More Purger**  
 > **Author:** **Qorelith**
-
 ---
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/qorelith/Notcord/main/Notcord%20Python/assets/logo.png" width="180" alt="Notcord Logo" />
 </p>
+
 ## 🌟 Features
 
 - ⚡ **Turbo-Fast Deletion (~5-7 Messages/Second):** Persistent HTTP connections (Keep-Alive) and a configurable delay (`0.15s` default, ranging from `0.05s - 3.50s`) to wipe messages rapidly.
