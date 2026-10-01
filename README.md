@@ -26,6 +26,8 @@
   - Custom Duration (Specify hours or days)
   - All Time (Unlimited)
 - ⭐ **Favorite GIF Purger:** Remove all favorited GIFs from your account or filter them by specific time ranges (e.g., last 6 months / first 6 months) with a single click.
+- ⏳ **Self-Destruct:** You set a specific time, and once that time elapses, all messages you sent in the group, server, or DM you specified (or all of them) are deleted.
+- 💬**Auto-Edit:** Specify a word; based on your choice, either edit all messages containing this word (or consisting solely of it) to a word of your preference, or delete them entirely.
 - 🖥 **Live Event Console:** Real-time colored terminal logging showing deleted message IDs, content previews, and Discord rate limit (429) statuses.
 - 🛑 **Safe Stop:** Pause or stop the deletion process at any time.
 - 🌐 **Five Language Support:** Dynamic one-click switching between English, Turkish, Spanish, Portuguese, and Russian.
