@@ -27,6 +27,8 @@
   - Özel Süre (Belirlediğiniz saat veya gün sayısı)
   - Tüm Zamanlar (Sınırsız)
 - ⭐ **Favori GIF Temizleyici:** Hesabınızda favorilere eklenmiş tüm GIF'leri veya Belli zaman aralıklarından önce veya sonra (örnek: son 6 ayda / ilk 6 ayda) tek tıkla hesabınızdan siler.
+- ⏳ **Kendini İmha Etme:** Belirli bir süre ayarlarsınız; bu süre dolduğunda, belirttiğiniz grupta, sunucuda veya özel mesajda (DM) gönderdiğiniz tüm mesajlar (veya bunların tamamı) silinir.
+- 💬 **Otomatik Düzenleme:** Bir kelime belirleyin; seçiminize bağlı olarak, bu kelimeyi içeren (veya yalnızca bu kelimeden oluşan) tüm mesajları tercih ettiğiniz başka bir kelimeyle değiştirin ya da tamamen silin.
 - 🖥 **Canlı Etkinlik Konsolu:** Silinen mesajların ID'leri, içerik önizlemeleri ve Discord hız sınırı (429) durumları renkli terminalde anlık olarak görüntülenir.
 - 🛑 **Güvenli Durdurma:** İstediğiniz an silme işlemini durdurabilirsiniz.
 - 🌐 **Beş Dil Desteği:** Türkçe, İngilizce, İspanyolca, Portekizce, Rusça arasında tek tıkla dinamik geçiş.
