@@ -18,11 +18,8 @@
   - *GIFs Only:* Cleans messages containing GIFs.
   - *Plain Text Only:* Deletes text-only messages containing no media.
 - ⏳ **Timeframe Options:**
-  - Past 1 Hour
-  - Past 6 Hours
-  - Past 24 Hours (1 Day)
-  - Past 7 Days
-  - Past 30 Days
+  - Past 1, 6, 24 Hour
+  - Past 7, 30 Days
   - Custom Duration (Specify hours or days)
   - All Time (Unlimited)
 - ⭐ **Favorite GIF Purger:** Remove all favorited GIFs from your account or filter them by specific time ranges (e.g., last 6 months / first 6 months) with a single click.
@@ -31,7 +28,8 @@
 - 🖥 **Live Event Console:** Real-time colored terminal logging showing deleted message IDs, content previews, and Discord rate limit (429) statuses.
 - 🛑 **Safe Stop:** Pause or stop the deletion process at any time.
 - 🌐 **Five Language Support:** Dynamic one-click switching between English, Turkish, Spanish, Portuguese, and Russian.
-- 🎨 **Discord-Inspired Modern UI:** Crafted with CustomTkinter featuring a sleek red, dark gray, black, and white color scheme.
+- 🪪 **One-click login:** The application connects to your Discord desktop (or web) client and automatically retrieves your token.
+- 🪪 **Log in with token:** Enter your Discord user token and use the application.
 
 ---
 
