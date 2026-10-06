@@ -1,7 +1,7 @@
 """
 Notcord Localization (i18n) Module
 Supports English (EN), Turkish (TR), Spanish (ES), Portuguese (PT), and Russian (RU)
-Created by Qorelith - v2.3.0
+Created by Qorelith - v1.2.4
 """
 
 TRANSLATIONS = {
@@ -12,8 +12,8 @@ TRANSLATIONS = {
         "app_subtitle": "Discord Message, Media & Account Manager",
         "credit": "Created by Qorelith",
         "created_by": "Developer: Qorelith",
-        "version": "v2.3.0",
-        "version_badge": "v2.3",
+        "version": "v1.2.4",
+        "version_badge": "v1.2.4",
         "language": "Language",
         "status_ready": "Ready",
         "status_running": "Running...",
@@ -42,11 +42,18 @@ TRANSLATIONS = {
         "auto_detect_found": "Discord session detected! Connected as: {user}",
         "auto_detect_not_found": "No active Discord or browser session found.\nPlease make sure Discord desktop or Discord Web in your browser is running and logged in.",
         "auto_detect_help_title": "Discord Session Not Found",
-        "auto_detect_help_msg": "Could not detect an active Discord session on this system.\n\nPlease ensure that:\n1. Discord Desktop (or Discord PTB / Canary) is open and logged in.\n2. Or Discord Web is open and logged in on Chrome, Edge, Brave, or Opera.\n\nThen click 'Connect Discord Account' again.",
+        "auto_detect_help_msg": "Could not detect an active Discord session on this system.\n\nPlease ensure that:\n1. Discord Desktop is open and logged in.\n2. Or Discord Web is open and logged in on your browser.\n\nThen click 'Connect Discord Account' again.",
         "connecting": "Connecting...",
         "login_success": "Successfully connected as: {user}",
         "login_error": "Connection failed! Discord session invalid or API unreachable.",
-        "token_security_note": "🔒 Security: Your token is held purely in RAM during this session. It is NEVER saved to disk, never shared, and instantly wiped when the app closes.",
+        "login_or_divider": "— OR —",
+        "login_token_label": "Login with Discord Token",
+        "login_token_placeholder": "Paste your Discord token here...",
+        "btn_login_token": "🔑 Connect with Token",
+        "login_token_verifying": "Verifying token with Discord...",
+        "login_token_invalid": "Invalid Discord token! Please check and try again.",
+        "login_token_empty": "Please enter a Discord token first.",
+        "token_security_note": "🔒 Security: Your token is active in config.json while running and is automatically wiped upon exit.",
         "btn_disconnect": "Disconnect",
 
         # Sidebar & Navigation
@@ -284,7 +291,7 @@ TRANSLATIONS = {
         "gif_custom_val": "Retention Value:",
 
         # Console Log Messages
-        "log_engine_ready": "Notcord v2.3 started. Developed by Qorelith.",
+        "log_engine_ready": "Notcord v1.2.4 started. Developed by Qorelith.",
         "log_login_success": "Connected as: {user} (ID: {id})",
         "log_start_scan": "Scanning target: {target} (Channel ID: {channel}) | Filter: {filter} | Time: {time}",
         "log_msg_deleted": "[DELETED] ID: {id} | Date: {date} | Content: {preview}",
@@ -304,8 +311,8 @@ TRANSLATIONS = {
         "app_subtitle": "Discord Mesaj, Medya & Hesap Yöneticisi",
         "credit": "Qorelith tarafından yapıldı",
         "created_by": "Geliştirici: Qorelith",
-        "version": "v2.3.0",
-        "version_badge": "v2.3",
+        "version": "v1.2.4",
+        "version_badge": "v1.2.4",
         "language": "Dil",
         "status_ready": "Hazır",
         "status_running": "Çalışıyor...",
@@ -334,11 +341,18 @@ TRANSLATIONS = {
         "auto_detect_found": "Discord oturumu algılandı! Bağlanıldı: {user}",
         "auto_detect_not_found": "Açık Discord veya tarayıcı oturumu bulunamadı.\nLütfen Discord uygulamasının veya tarayıcınızda Discord Web'in açık ve giriş yapılmış olduğundan emin olun.",
         "auto_detect_help_title": "Discord Oturumu Bulunamadı",
-        "auto_detect_help_msg": "Sisteminizde aktif bir Discord oturumu tespit edilemedi.\n\nLütfen şunları kontrol edin:\n1. Discord Masaüstü (veya PTB / Canary) uygulamasının açık ve hesabınıza giriş yapılmış olduğundan emin olun.\n2. Veya Chrome, Edge, Brave ya da Opera tarayıcınızda Discord Web'e giriş yapmış olun.\n\nArdından 'Discord Hesabını Bağla' butonuna tekrar tıklayın.",
+        "auto_detect_help_msg": "Sisteminizde aktif bir Discord oturumu tespit edilemedi.\n\nLütfen şunları kontrol edin:\n1. Discord Masaüstü uygulamasının açık ve hesabınıza giriş yapılmış olduğundan emin olun.\n2. Veya tarayıcınızda Discord Web'e giriş yapmış olun.\n\nArdından 'Discord Hesabını Bağla' butonuna tekrar tıklayın.",
         "connecting": "Bağlanılıyor...",
         "login_success": "Başarıyla giriş yapıldı: {user}",
         "login_error": "Giriş başarısız! Discord oturumu geçersiz veya API'ye ulaşılamadı.",
-        "token_security_note": "🔒 Güvenlik: Tokenınız bu oturum boyunca yalnızca RAM belleğinde tutulur. Asla diske kaydedilmez, hiçbir yere gönderilmez ve program kapatıldığında tamamen sıfırlanır.",
+        "login_or_divider": "— VEYA —",
+        "login_token_label": "Discord Tokeni ile Giriş Yap",
+        "login_token_placeholder": "Discord tokeninizi buraya yapıştırın...",
+        "btn_login_token": "🔑 Token ile Giriş Yap",
+        "login_token_verifying": "Token Discord ile doğrulanıyor...",
+        "login_token_invalid": "Geçersiz Discord tokeni! Lütfen kontrol edip tekrar deneyin.",
+        "login_token_empty": "Lütfen önce bir Discord tokeni girin.",
+        "token_security_note": "🔒 Güvenlik: Tokenınız program açıkken config.json dosyasında tutulur, program kapatıldığında tamamen silinir.",
         "btn_disconnect": "Çıkış Yap",
 
         # Sidebar & Navigation
@@ -576,7 +590,7 @@ TRANSLATIONS = {
         "gif_custom_val": "Saklama Değeri:",
 
         # Console Log Messages
-        "log_engine_ready": "Notcord v2.3 başlatıldı. Geliştirici: Qorelith.",
+        "log_engine_ready": "Notcord v1.2.4 başlatıldı. Geliştirici: Qorelith.",
         "log_login_success": "Giriş yapıldı: {user} (ID: {id})",
         "log_start_scan": "Hedef taranıyor: {target} (Kanal ID: {channel}) | Filtre: {filter} | Süre: {time}",
         "log_msg_deleted": "[SİLİNDİ] ID: {id} | Tarih: {date} | İçerik: {preview}",
@@ -596,8 +610,8 @@ TRANSLATIONS = {
         "app_subtitle": "Gestor de Mensajes, Medios y Cuenta de Discord",
         "credit": "Creado por Qorelith",
         "created_by": "Desarrollador: Qorelith",
-        "version": "v2.3.0",
-        "version_badge": "v2.3",
+        "version": "v1.2.4",
+        "version_badge": "v1.2.4",
         "language": "Idioma",
         "status_ready": "Listo",
         "status_running": "Ejecutando...",
@@ -626,11 +640,18 @@ TRANSLATIONS = {
         "auto_detect_found": "¡Sesión detectada! Conectado como: {user}",
         "auto_detect_not_found": "No se encontró ninguna sesión activa de Discord o navegador.\nAsegúrate de que Discord o Discord Web en tu navegador esté abierto e iniciado.",
         "auto_detect_help_title": "Sesión de Discord no encontrada",
-        "auto_detect_help_msg": "No se detectó ninguna sesión activa de Discord en este equipo.\n\nAsegúrate de que:\n1. Discord Desktop (o PTB / Canary) esté abierto con tu cuenta.\n2. O Discord Web esté abierto en Chrome, Edge, Brave u Opera.\n\nLuego vuelve a presionar 'Conectar Cuenta de Discord'.",
+        "auto_detect_help_msg": "No se detectó ninguna sesión activa de Discord en este equipo.\n\nAsegúrate de que:\n1. Discord Desktop esté abierto con tu cuenta.\n2. O Discord Web esté abierto en tu navegador.\n\nLuego vuelve a presionar 'Conectar Cuenta de Discord'.",
         "connecting": "Conectando...",
         "login_success": "Conectado exitosamente como: {user}",
         "login_error": "¡Error al conectar! Sesión de Discord inválida o API inaccesible.",
-        "token_security_note": "🔒 Seguridad: Tu token se almacena únicamente en la memoria RAM durante esta sesión. NUNCA se guarda en el disco y se borra al cerrar la aplicación.",
+        "login_or_divider": "— O —",
+        "login_token_label": "Iniciar sesión con Token de Discord",
+        "login_token_placeholder": "Pega tu token de Discord aquí...",
+        "btn_login_token": "🔑 Conectar con Token",
+        "login_token_verifying": "Verificando token con Discord...",
+        "login_token_invalid": "¡Token de Discord no válido! Por favor revisa e intenta de nuevo.",
+        "login_token_empty": "Por favor ingresa un token primero.",
+        "token_security_note": "🔒 Seguridad: Tu token se almacena en config.json mientras la app esté abierta y se borra al cerrar.",
         "btn_disconnect": "Desconectar",
 
         # Sidebar & Navigation
@@ -868,7 +889,7 @@ TRANSLATIONS = {
         "gif_custom_val": "Valor de Retención:",
 
         # Console Log Messages
-        "log_engine_ready": "Notcord v2.3 iniciado. Desarrollado por Qorelith.",
+        "log_engine_ready": "Notcord v1.2.4 iniciado. Desarrollado por Qorelith.",
         "log_login_success": "Sesión iniciada: {user} (ID: {id})",
         "log_start_scan": "Escaneando objetivo: {target} (Canal ID: {channel}) | Filtro: {filter} | Tiempo: {time}",
         "log_msg_deleted": "[ELIMINADO] ID: {id} | Fecha: {date} | Contenido: {preview}",
@@ -888,8 +909,8 @@ TRANSLATIONS = {
         "app_subtitle": "Gerenciador de Mensagens, Mídias e Conta Discord",
         "credit": "Criado por Qorelith",
         "created_by": "Desenvolvedor: Qorelith",
-        "version": "v2.3.0",
-        "version_badge": "v2.3",
+        "version": "v1.2.4",
+        "version_badge": "v1.2.4",
         "language": "Idioma",
         "status_ready": "Pronto",
         "status_running": "Executando...",
@@ -918,11 +939,18 @@ TRANSLATIONS = {
         "auto_detect_found": "Sessão detectada! Conectado como: {user}",
         "auto_detect_not_found": "Nenhuma sessão ativa do Discord ou navegador encontrada.\nCertifique-se de que o Discord ou Discord Web esteja aberto e conectado.",
         "auto_detect_help_title": "Sessão do Discord Não Encontrada",
-        "auto_detect_help_msg": "Não foi possível detectar uma sessão ativa do Discord neste computador.\n\nVerifique se:\n1. O Discord Desktop (ou PTB / Canary) está aberto e conectado.\n2. Ou o Discord Web está aberto no Chrome, Edge, Brave ou Opera.\n\nEm seguida, clique em 'Conectar Conta Discord' novamente.",
+        "auto_detect_help_msg": "Não foi possível detectar uma sessão ativa do Discord neste computador.\n\nVerifique se:\n1. O Discord Desktop está aberto e conectado.\n2. Ou o Discord Web está aberto no seu navegador.\n\nEm seguida, clique em 'Conectar Conta Discord' novamente.",
         "connecting": "Conectando...",
         "login_success": "Conectado com sucesso como: {user}",
         "login_error": "Falha na conexão! Sessão inválida ou API inacessível.",
-        "token_security_note": "🔒 Segurança: Seu token é mantido exclusivamente na memória RAM durante esta sessão. NUNCA é salvo no disco e é apagado ao fechar o programa.",
+        "login_or_divider": "— OU —",
+        "login_token_label": "Entrar com Token do Discord",
+        "login_token_placeholder": "Cole seu token do Discord aqui...",
+        "btn_login_token": "🔑 Conectar com Token",
+        "login_token_verifying": "Verificando token com o Discord...",
+        "login_token_invalid": "Token do Discord inválido! Por favor verifique e tente novamente.",
+        "login_token_empty": "Por favor insira um token primeiro.",
+        "token_security_note": "🔒 Segurança: Seu token é mantido no config.json enquanto aberto e é apagado ao fechar.",
         "btn_disconnect": "Desconectar",
 
         # Sidebar & Navigation
@@ -1160,7 +1188,7 @@ TRANSLATIONS = {
         "gif_custom_val": "Valor de Retenção:",
 
         # Console Log Messages
-        "log_engine_ready": "Notcord v2.3 iniciado. Desenvolvido por Qorelith.",
+        "log_engine_ready": "Notcord v1.2.4 iniciado. Desenvolvido por Qorelith.",
         "log_login_success": "Conectado como: {user} (ID: {id})",
         "log_start_scan": "Escaneando alvo: {target} (Canal ID: {channel}) | Filtro: {filter} | Tempo: {time}",
         "log_msg_deleted": "[EXCLUÍDO] ID: {id} | Data: {date} | Conteúdo: {preview}",
@@ -1180,8 +1208,8 @@ TRANSLATIONS = {
         "app_subtitle": "Менеджер сообщений, медиа и аккаунта Discord",
         "credit": "Создано Qorelith",
         "created_by": "Разработчик: Qorelith",
-        "version": "v2.3.0",
-        "version_badge": "v2.3",
+        "version": "v1.2.4",
+        "version_badge": "v1.2.4",
         "language": "Язык",
         "status_ready": "Готов",
         "status_running": "Выполняется...",
@@ -1210,11 +1238,18 @@ TRANSLATIONS = {
         "auto_detect_found": "Сессия Discord найдена! Подключено как: {user}",
         "auto_detect_not_found": "Активная сессия Discord или браузера не найдена.\nПожалуйста, убедитесь, что приложение Discord или Discord Web в браузере открыты и выполнен вход.",
         "auto_detect_help_title": "Сессия Discord не обнаружена",
-        "auto_detect_help_msg": "Не удалось обнаружить активную сессию Discord на этом ПК.\n\nПожалуйста, проверьте:\n1. Запущено ли приложение Discord (или PTB / Canary) и выполнен ли вход.\n2. Или открыт ли Discord Web в Chrome, Edge, Brave или Opera.\n\nЗатем нажмите кнопку 'Подключить аккаунт Discord' снова.",
+        "auto_detect_help_msg": "Не удалось обнаружить активную сессию Discord на этом ПК.\n\nПожалуйста, проверьте:\n1. Запущено ли приложение Discord и выполнен ли вход.\n2. Или открыт ли Discord Web в браузере.\n\nЗатем нажмите кнопку 'Подключить аккаунт Discord' снова.",
         "connecting": "Подключение...",
         "login_success": "Успешный вход: {user}",
         "login_error": "Ошибка входа! Неверная сессия или нет доступа к Discord API.",
-        "token_security_note": "🔒 Безопасность: Ваш токен хранится исключительно в оперативной памяти (RAM) во время текущего сеанса. Он НИКОГДА не сохраняется на диске и полностью сбрасывается при закрытии программы.",
+        "login_or_divider": "— ИЛИ —",
+        "login_token_label": "Войти с помощью токена Discord",
+        "login_token_placeholder": "Вставьте ваш токен Discord сюда...",
+        "btn_login_token": "🔑 Войти по токену",
+        "login_token_verifying": "Проверка токена через Discord...",
+        "login_token_invalid": "Неверный токен Discord! Пожалуйста, проверьте и повторите попытку.",
+        "login_token_empty": "Пожалуйста, сначала введите токен.",
+        "token_security_note": "🔒 Безопасность: Ваш токен хранится в config.json во время работы и удаляется при закрытии.",
         "btn_disconnect": "Выйти",
 
         # Sidebar & Navigation
@@ -1452,7 +1487,7 @@ TRANSLATIONS = {
         "gif_custom_val": "Значение правила:",
 
         # Console Log Messages
-        "log_engine_ready": "Notcord v2.3 запущен. Разработчик: Qorelith.",
+        "log_engine_ready": "Notcord v1.2.4 запущен. Разработчик: Qorelith.",
         "log_login_success": "Вход выполнен: {user} (ID: {id})",
         "log_start_scan": "Сканирование: {target} (Канал ID: {channel}) | Фильтр: {filter} | Время: {time}",
         "log_msg_deleted": "[УДАЛЕНО] ID: {id} | Дата: {date} | Текст: {preview}",
