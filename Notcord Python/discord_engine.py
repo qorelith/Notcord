@@ -104,9 +104,44 @@ def verify_token(token: str) -> Tuple[bool, Optional[dict], Optional[str]]:
         return False, None, f"Network error: {str(e)}"
 
 
+def _read_file_shared(path: str) -> bytes:
+    """Reads a file with shared read/write/delete locks on Windows to bypass active process locks."""
+    if sys.platform == "win32":
+        try:
+            kernel32 = ctypes.windll.kernel32
+            handle = kernel32.CreateFileW(
+                path,
+                0x80000000,  # GENERIC_READ
+                0x00000007,  # FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
+                None,
+                3,           # OPEN_EXISTING
+                0x80,        # FILE_ATTRIBUTE_NORMAL
+                None
+            )
+            if handle != -1 and handle != ctypes.wintypes.HANDLE(-1).value:
+                try:
+                    size = kernel32.GetFileSize(handle, None)
+                    if size > 0:
+                        buf = ctypes.create_string_buffer(size)
+                        read_bytes = ctypes.wintypes.DWORD()
+                        if kernel32.ReadFile(handle, buf, size, ctypes.byref(read_bytes), None):
+                            return buf.raw[:read_bytes.value]
+                finally:
+                    kernel32.CloseHandle(handle)
+        except Exception:
+            pass
+    try:
+        with open(path, "rb") as f:
+            return f.read()
+    except Exception:
+        return b""
+
+
 def find_local_discord_sessions() -> List[Tuple[str, dict]]:
     """
-    Scans local Windows Discord installations for active user sessions.
+    Scans local Windows Discord installations, browser sessions (including DuckDuckGo,
+    Chrome profiles, Edge, Brave, Opera), and Web sessions for active user tokens.
+    Uses shared file reads to handle running Discord/browser locks.
     Returns list of verified (token, user_data) tuples.
     """
     if not HAS_CRYPTO or sys.platform != "win32":
@@ -114,69 +149,147 @@ def find_local_discord_sessions() -> List[Tuple[str, dict]]:
 
     tokens: List[str] = []
     appdata = os.getenv("APPDATA")
-    if not appdata:
-        return []
-
-    candidate_dirs = [
-        os.path.join(appdata, "discord"),
-        os.path.join(appdata, "discordcanary"),
-        os.path.join(appdata, "discordptb"),
-        os.path.join(appdata, "discorddevelopment"),
-        os.path.join(appdata, "Vencord"),
-        os.path.join(appdata, "Lightcord"),
-    ]
     localappdata = os.getenv("LOCALAPPDATA")
-    if localappdata:
+
+    candidate_dirs: List[str] = []
+
+    if appdata:
+        # Standard Discord desktop clients
         candidate_dirs.extend([
-            os.path.join(localappdata, "Google", "Chrome", "User Data", "Default"),
-            os.path.join(localappdata, "Microsoft", "Edge", "User Data", "Default"),
-            os.path.join(localappdata, "BraveSoftware", "Brave-Browser", "User Data", "Default"),
+            os.path.join(appdata, "discord"),
+            os.path.join(appdata, "discordcanary"),
+            os.path.join(appdata, "discordptb"),
+            os.path.join(appdata, "discorddevelopment"),
+            os.path.join(appdata, "vesktop", "sessionData"),
             os.path.join(appdata, "Opera Software", "Opera Stable"),
             os.path.join(appdata, "Opera Software", "Opera GX Stable"),
         ])
 
-    for disc_dir in candidate_dirs:
-        if not os.path.exists(disc_dir):
-            continue
+    if localappdata:
+        candidate_dirs.extend([
+            os.path.join(localappdata, "Discord"),
+            os.path.join(localappdata, "discordcanary"),
+            os.path.join(localappdata, "discordptb"),
+            os.path.join(localappdata, "Programs", "Opera", "profile"),
+            os.path.join(localappdata, "Programs", "Opera GX", "profile"),
+            os.path.join(localappdata, "Yandex", "YandexBrowser", "User Data", "Default"),
+            os.path.join(localappdata, "Arc", "User Data", "Default"),
+        ])
 
-        local_state_path = os.path.join(disc_dir, "Local State")
-        if not os.path.exists(local_state_path):
-            local_state_path = os.path.join(os.path.dirname(disc_dir), "Local State")
+        # Microsoft Store Discord packages
+        for pkg in glob.glob(os.path.join(localappdata, "Packages", "*Discord*", "LocalCache", "Roaming", "discord")):
+            candidate_dirs.append(pkg)
+
+        # Chrome profiles (Default, Profile 1, Profile 2, etc.)
+        candidate_dirs.append(os.path.join(localappdata, "Google", "Chrome", "User Data", "Default"))
+        for p in glob.glob(os.path.join(localappdata, "Google", "Chrome", "User Data", "Profile *")):
+            candidate_dirs.append(p)
+
+        # Edge profiles
+        candidate_dirs.append(os.path.join(localappdata, "Microsoft", "Edge", "User Data", "Default"))
+        for p in glob.glob(os.path.join(localappdata, "Microsoft", "Edge", "User Data", "Profile *")):
+            candidate_dirs.append(p)
+
+        # Brave profiles
+        candidate_dirs.append(os.path.join(localappdata, "BraveSoftware", "Brave-Browser", "User Data", "Default"))
+        for p in glob.glob(os.path.join(localappdata, "BraveSoftware", "Brave-Browser", "User Data", "Profile *")):
+            candidate_dirs.append(p)
+
+        # Vivaldi profiles
+        candidate_dirs.append(os.path.join(localappdata, "Vivaldi", "User Data", "Default"))
+        for p in glob.glob(os.path.join(localappdata, "Vivaldi", "User Data", "Profile *")):
+            candidate_dirs.append(p)
+
+        # DuckDuckGo Windows Browser (find all webview leveldb dirs)
+        ddg_base = os.path.join(localappdata, "DuckDuckGo")
+        if os.path.exists(ddg_base):
+            for ldb_path in glob.glob(os.path.join(ddg_base, "**", "leveldb"), recursive=True):
+                prof_dir = os.path.dirname(os.path.dirname(ldb_path))
+                if prof_dir and prof_dir not in candidate_dirs:
+                    candidate_dirs.append(prof_dir)
+
+    # Deduplicate candidate directories
+    seen_dirs = set()
+    cleaned_candidate_dirs = []
+    for d in candidate_dirs:
+        norm = os.path.normpath(d).lower()
+        if norm not in seen_dirs and os.path.exists(d):
+            seen_dirs.add(norm)
+            cleaned_candidate_dirs.append(d)
+
+    for disc_dir in cleaned_candidate_dirs:
+        # Search for Local State file to decrypt key
         key = None
-        if os.path.exists(local_state_path):
-            try:
-                with open(local_state_path, "r", encoding="utf-8") as f:
-                    local_state = json.load(f)
-                encrypted_key = base64.b64decode(local_state["os_crypt"]["encrypted_key"])
-                key = _decrypt_dpapi(encrypted_key[5:])
-            except Exception:
-                pass
+        for try_path in [
+            os.path.join(disc_dir, "Local State"),
+            os.path.join(os.path.dirname(disc_dir), "Local State"),
+            os.path.join(os.path.dirname(os.path.dirname(disc_dir)), "Local State")
+        ]:
+            if os.path.exists(try_path):
+                try:
+                    with open(try_path, "r", encoding="utf-8") as f:
+                        local_state = json.load(f)
+                    encrypted_key = base64.b64decode(local_state["os_crypt"]["encrypted_key"])
+                    key = _decrypt_dpapi(encrypted_key[5:])
+                    if key:
+                        break
+                except Exception:
+                    pass
 
-        leveldb_path = os.path.join(disc_dir, "Local Storage", "leveldb")
-        if os.path.exists(leveldb_path) and key:
-            try:
-                aesgcm = AESGCM(key)
-            except Exception:
+        leveldb_paths = [
+            os.path.join(disc_dir, "Local Storage", "leveldb"),
+            os.path.join(disc_dir, "leveldb"),
+            os.path.join(disc_dir, "Session Storage")
+        ]
+
+        for leveldb_path in leveldb_paths:
+            if not os.path.exists(leveldb_path):
                 continue
+
+            aesgcm = None
+            if key:
+                try:
+                    aesgcm = AESGCM(key)
+                except Exception:
+                    aesgcm = None
 
             files = glob.glob(os.path.join(leveldb_path, "*.ldb")) + glob.glob(os.path.join(leveldb_path, "*.log"))
             for file_path in files:
                 try:
-                    with open(file_path, "rb") as f:
-                        raw_bytes = f.read()
+                    raw_bytes = _read_file_shared(file_path)
+                    if not raw_bytes:
+                        continue
                     content = raw_bytes.decode("latin-1", errors="ignore")
-                    matches = re.findall(r'dQw4w9WgXcQ:([^"]+)', content)
-                    for m in matches:
-                        try:
-                            clean_m = m.split('"')[0].split('\\')[0]
-                            raw = base64.b64decode(clean_m)
-                            iv = raw[3:15]
-                            payload = raw[15:]
-                            decrypted = aesgcm.decrypt(iv, payload, None).decode("utf-8")
-                            if decrypted and len(decrypted) > 30 and decrypted not in tokens:
-                                tokens.append(decrypted)
-                        except Exception:
-                            pass
+
+                    # 1. Encrypted Discord token pattern (dQw4w9WgXcQ:...)
+                    if aesgcm:
+                        matches = re.findall(r'dQw4w9WgXcQ:([a-zA-Z0-9+/=]+)', content)
+                        for m in matches:
+                            try:
+                                pad = len(m) % 4
+                                if pad:
+                                    m += "=" * (4 - pad)
+                                raw = base64.b64decode(m)
+                                iv = raw[3:15]
+                                payload = raw[15:]
+                                decrypted = aesgcm.decrypt(iv, payload, None).decode("utf-8", errors="ignore")
+                                if decrypted and len(decrypted) > 30 and decrypted not in tokens:
+                                    tokens.append(decrypted)
+                            except Exception:
+                                pass
+
+                    # 2. Unencrypted token pattern (used in browser sessions like DuckDuckGo, Chrome, etc.)
+                    unenc_matches = re.findall(r'[\w-]{24,28}\.[\w-]{6}\.[\w-]{27,110}', content)
+                    for ut in unenc_matches:
+                        if ut not in tokens:
+                            tokens.append(ut)
+
+                    # 3. MFA token pattern
+                    mfa_matches = re.findall(r'mfa\.[\w-]{84}', content)
+                    for mt in mfa_matches:
+                        if mt not in tokens:
+                            tokens.append(mt)
+
                 except Exception:
                     pass
 
@@ -405,7 +518,8 @@ def get_guild_channels(token: str, guild_id: str) -> List[dict]:
             "type": "channel",
             "type_name": "Server Channel",
             "position": c.get("position", 0),
-            "parent_id": c.get("parent_id")
+            "parent_id": c.get("parent_id"),
+            "last_message_id": int(c.get("last_message_id") or 0) if str(c.get("last_message_id", "")).isdigit() else 0
         }
         for c in channels if c.get("type") in (0, 5)
     ]
@@ -658,7 +772,8 @@ class MessagePurgerWorker(threading.Thread):
         on_log: Optional[Callable[[str, str], None]] = None,
         on_progress: Optional[Callable[[int, int, int, int, int, str], None]] = None,
         on_finished: Optional[Callable[[dict], None]] = None,
-        on_stopped: Optional[Callable[[], None]] = None
+        on_stopped: Optional[Callable[[], None]] = None,
+        silent_empty: bool = False
     ):
         super().__init__(daemon=True)
         self.token = token
@@ -671,6 +786,7 @@ class MessagePurgerWorker(threading.Thread):
         self.random_delay = random_delay
         self.min_delay = max(0.1, float(min_delay))
         self.max_delay = max(self.min_delay, float(max_delay))
+        self.silent_empty = silent_empty
 
         self.on_log = on_log
         self.on_progress = on_progress
@@ -763,8 +879,9 @@ class MessagePurgerWorker(threading.Thread):
 
     def run(self):
         self.start_time = time.time()
-        self.log("info", f"Starting purge operation on {self.channel_name} (ID: {self.channel_id})")
-        self.log("info", f"Filter: {self.filter_type} | Time Window: {self.time_limit_seconds or 'All Time'}")
+        if not self.silent_empty:
+            self.log("info", f"Starting purge operation on {self.channel_name} (ID: {self.channel_id})")
+            self.log("info", f"Filter: {self.filter_type} | Time Window: {self.time_limit_seconds or 'All Time'}")
 
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         time_cutoff = None
@@ -795,21 +912,25 @@ class MessagePurgerWorker(threading.Thread):
                         self.log("warn", f"Rate limit reached when fetching messages. Sleeping {retry_after:.1f}s...")
                         time.sleep(retry_after + 0.1)
                     elif res.status_code in (403, 404):
-                        self.log("error", f"Channel access error (HTTP {res.status_code}). Check permissions.")
+                        if not self.silent_empty:
+                            self.log("error", f"Channel access error (HTTP {res.status_code}). Check permissions.")
                         self.stop_requested = True
                         break
                     else:
-                        self.log("error", f"Failed to fetch messages (HTTP {res.status_code}).")
+                        if not self.silent_empty:
+                            self.log("error", f"Failed to fetch messages (HTTP {res.status_code}).")
                         time.sleep(1.0)
                 except requests.exceptions.RequestException as e:
-                    self.log("error", f"Network error when fetching messages: {e}")
+                    if not self.silent_empty:
+                        self.log("error", f"Network error when fetching messages: {e}")
                     time.sleep(1.0)
 
             if self.stop_requested or not messages:
                 break
 
             if len(messages) == 0:
-                self.log("info", "No more messages found in this channel.")
+                if not self.silent_empty:
+                    self.log("info", "No more messages found in this channel.")
                 break
 
             reached_cutoff = False
@@ -823,7 +944,8 @@ class MessagePurgerWorker(threading.Thread):
 
                 msg_time = self.get_snowflake_time(msg_id)
                 if time_cutoff and msg_time < time_cutoff:
-                    self.log("info", f"Reached time cutoff at message timestamp {msg_time.strftime('%Y-%m-%d %H:%M:%S UTC')}.")
+                    if not self.silent_empty:
+                        self.log("info", f"Reached time cutoff at message timestamp {msg_time.strftime('%Y-%m-%d %H:%M:%S UTC')}.")
                     reached_cutoff = True
                     break
 
@@ -857,7 +979,8 @@ class MessagePurgerWorker(threading.Thread):
                         del_res = self.session.delete(del_url, timeout=10)
                         if del_res.status_code in (204, 200):
                             self.deleted_count += 1
-                            self.log("delete", f"Deleted message #{msg_id} ({msg_time.strftime('%H:%M:%S')}) -> \"{content_preview}\"")
+                            prefix = f"[{self.channel_name}] " if self.silent_empty else ""
+                            self.log("delete", f"{prefix}Deleted message #{msg_id} ({msg_time.strftime('%H:%M:%S')}) -> \"{content_preview}\"")
                             self.update_progress()
                             if self.random_delay:
                                 r_wait = random.uniform(min(self.min_delay, self.max_delay), max(self.min_delay, self.max_delay))
@@ -912,11 +1035,15 @@ class MessagePurgerWorker(threading.Thread):
         }
 
         if self.stop_requested:
-            self.log("info", f"Operation stopped by user. Total deleted: {self.deleted_count} | Elapsed: {elapsed_str}")
+            if not self.silent_empty or self.deleted_count > 0:
+                self.log("info", f"[{self.channel_name}] Operation stopped by user. Total deleted: {self.deleted_count} | Elapsed: {elapsed_str}")
             if self.on_stopped:
                 self.on_stopped()
         else:
-            self.log("success", f"Purge completed! Total deleted: {self.deleted_count} | Scanned: {self.scanned_count} | Elapsed: {elapsed_str}")
+            if not self.silent_empty:
+                self.log("success", f"Purge completed! Total deleted: {self.deleted_count} | Scanned: {self.scanned_count} | Elapsed: {elapsed_str}")
+            elif self.deleted_count > 0:
+                self.log("success", f"[{self.channel_name}] Purge completed! Deleted: {self.deleted_count} | Elapsed: {elapsed_str}")
             if self.on_finished:
                 self.on_finished(summary)
 
@@ -1367,14 +1494,26 @@ class AutoEditWorker(threading.Thread):
 
 class SelfDestructManager:
     """Manages active self-destruct countdown timer and triggers timed message purge."""
-    def __init__(self, token: str, user_id: str, on_log=None, on_tick=None, on_complete=None):
+    def __init__(
+        self,
+        token: str,
+        user_id: str,
+        on_log=None,
+        on_tick=None,
+        on_complete=None,
+        on_purge_start=None,
+        on_purge_stop=None
+    ):
         self.token = token
         self.user_id = str(user_id)
         self.on_log = on_log
         self.on_tick = on_tick
         self.on_complete = on_complete
+        self.on_purge_start = on_purge_start
+        self.on_purge_stop = on_purge_stop
 
         self.is_armed = False
+        self.is_purging = False
         self.arm_timestamp = 0
         self.duration_seconds = 0
         self.target_scope = "selected"  # 'selected', 'all_dms', 'all_servers', 'everywhere'
@@ -1382,7 +1521,10 @@ class SelfDestructManager:
         self.target_channel_name = ""
         self.purge_mode = "since_armed" # 'since_armed', 'last_1h', 'last_24h', 'all'
         self._timer_thread: Optional[threading.Thread] = None
+        self._purge_thread: Optional[threading.Thread] = None
         self._cancel_flag = False
+        self._stop_requested = False
+        self._current_worker: Optional[MessagePurgerWorker] = None
 
     def arm(
         self,
@@ -1399,7 +1541,9 @@ class SelfDestructManager:
         self.purge_mode = purge_mode
         self.arm_timestamp = time.time()
         self.is_armed = True
+        self.is_purging = False
         self._cancel_flag = False
+        self._stop_requested = False
 
         if self.on_log:
             self.on_log("warn", f"🚀 Self-Destruct ARMED! Timer: {self.duration_seconds}s | Scope: {self.target_scope} | Window: {self.purge_mode}")
@@ -1408,13 +1552,22 @@ class SelfDestructManager:
         self._timer_thread.start()
 
     def cancel(self):
+        """Cancels countdown or halts an ongoing purge."""
+        self._cancel_flag = True
+        self._stop_requested = True
+
         if self.is_armed:
-            self._cancel_flag = True
             self.is_armed = False
             if self.on_log:
                 self.on_log("info", "❌ Self-Destruct CANCELLED by user.")
             if self.on_tick:
                 self.on_tick(0, "cancelled")
+
+        if self.is_purging:
+            if self._current_worker:
+                self._current_worker.stop()
+            if self.on_log:
+                self.on_log("warn", "⏹ Stopping Self-Destruct purge...")
 
     def detonate_now(self):
         """Immediately triggers the self-destruct purge without waiting."""
@@ -1423,7 +1576,7 @@ class SelfDestructManager:
             self.is_armed = False
             if self.on_log:
                 self.on_log("delete", "💥 Self-Destruct TRIGGERED IMMEDIATELY!")
-            threading.Thread(target=self._execute_purge, daemon=True).start()
+            self._start_purge()
 
     def _countdown_loop(self):
         end_time = self.arm_timestamp + self.duration_seconds
@@ -1447,33 +1600,21 @@ class SelfDestructManager:
             self.is_armed = False
             if self.on_log:
                 self.on_log("delete", "⏱ Self-Destruct timer expired! Detonating...")
-            threading.Thread(target=self._execute_purge, daemon=True).start()
+            self._start_purge()
+
+    def _start_purge(self):
+        self.is_purging = True
+        self._stop_requested = False
+        if self.on_purge_start:
+            self.on_purge_start()
+        self._purge_thread = threading.Thread(target=self._execute_purge, daemon=True)
+        self._purge_thread.start()
 
     def _execute_purge(self):
+        total_deleted = 0
+        was_stopped = False
         try:
-            channels: List[Tuple[str, str]] = []
-            if self.target_scope == "selected" and self.target_channel_id:
-                channels.append((self.target_channel_id, self.target_channel_name or "Selected Chat"))
-            elif self.target_scope == "all_dms":
-                dms = get_dms(self.token)
-                for d in dms:
-                    channels.append((d["id"], d["name"]))
-            elif self.target_scope == "all_servers":
-                guilds = get_guilds(self.token)
-                for g in guilds:
-                    chs = get_guild_channels(self.token, g["id"])
-                    for c in chs:
-                        channels.append((c["id"], f"{g['name']} / {c['name']}"))
-            elif self.target_scope == "everywhere":
-                dms = get_dms(self.token)
-                for d in dms:
-                    channels.append((d["id"], d["name"]))
-                guilds = get_guilds(self.token)
-                for g in guilds:
-                    chs = get_guild_channels(self.token, g["id"])
-                    for c in chs:
-                        channels.append((c["id"], f"{g['name']} / {c['name']}"))
-
+            # 1. Determine time cutoff and min_snowflake
             if self.purge_mode == "last_1h":
                 time_limit_seconds = 3600
             elif self.purge_mode == "last_24h":
@@ -1483,8 +1624,59 @@ class SelfDestructManager:
             else: # "since_armed"
                 time_limit_seconds = max(10, int(time.time() - self.arm_timestamp) + 15)
 
-            total_deleted = 0
-            for ch_id, ch_name in channels:
+            min_snowflake = 0
+            if time_limit_seconds:
+                cutoff_ts = (time.time() - time_limit_seconds) - 5
+                min_snowflake = (int(cutoff_ts * 1000) - 1420070400000) << 22
+
+            channels_to_scan: List[Tuple[str, str]] = []
+
+            # 2. Gather candidate channels with smart activity filtering
+            if self.target_scope == "selected" and self.target_channel_id:
+                channels_to_scan.append((self.target_channel_id, self.target_channel_name or "Selected Chat"))
+
+            elif self.target_scope in ("all_dms", "everywhere"):
+                dms = get_dms(self.token)
+                for d in dms:
+                    if self._stop_requested:
+                        break
+                    last_id = d.get("last_message_id", 0)
+                    if min_snowflake > 0 and last_id < min_snowflake:
+                        continue
+                    channels_to_scan.append((d["id"], d["name"]))
+
+            if self.target_scope in ("all_servers", "everywhere"):
+                guilds = get_guilds(self.token)
+                for g in guilds:
+                    if self._stop_requested:
+                        break
+                    chs = get_guild_channels(self.token, g["id"])
+                    for c in chs:
+                        last_id = c.get("last_message_id", 0)
+                        if min_snowflake > 0 and last_id < min_snowflake:
+                            continue
+                        channels_to_scan.append((c["id"], f"{g['name']} / {c['name']}"))
+
+            if self._stop_requested:
+                was_stopped = True
+                return
+
+            if not channels_to_scan:
+                if self.on_log:
+                    self.on_log("info", "No messages found in the selected time window to purge.")
+                if self.on_complete:
+                    self.on_complete(0, stopped=False)
+                return
+
+            if self.on_log:
+                self.on_log("warn", f"💥 Self-Destruct purge active across {len(channels_to_scan)} relevant channel(s)...")
+
+            # 3. Purge matching channels
+            for ch_id, ch_name in channels_to_scan:
+                if self._stop_requested:
+                    was_stopped = True
+                    break
+
                 worker = MessagePurgerWorker(
                     token=self.token,
                     channel_id=ch_id,
@@ -1493,17 +1685,36 @@ class SelfDestructManager:
                     filter_type="all",
                     time_limit_seconds=time_limit_seconds,
                     delay=0.15,
-                    on_log=self.on_log
+                    on_log=self.on_log,
+                    silent_empty=True
                 )
+                self._current_worker = worker
                 worker.run()
                 total_deleted += worker.deleted_count
+                self._current_worker = None
 
-            if self.on_log:
-                self.on_log("success", f"💥 Self-Destruct purge finished! Total messages deleted: {total_deleted}")
-            if self.on_complete:
-                self.on_complete(total_deleted)
+                if self._stop_requested or worker.stop_requested:
+                    was_stopped = True
+                    break
+
+            if was_stopped:
+                if self.on_log:
+                    self.on_log("warn", f"⏹ Self-Destruct purge stopped by user! Total messages deleted: {total_deleted}")
+                if self.on_purge_stop:
+                    self.on_purge_stop(total_deleted)
+                elif self.on_complete:
+                    self.on_complete(total_deleted, stopped=True)
+            else:
+                if self.on_log:
+                    self.on_log("success", f"💥 Self-Destruct purge finished! Total messages deleted: {total_deleted}")
+                if self.on_complete:
+                    self.on_complete(total_deleted, stopped=False)
+
         except Exception as e:
             if self.on_log:
                 self.on_log("error", f"Self-Destruct execution error: {e}")
             if self.on_complete:
-                self.on_complete(0)
+                self.on_complete(total_deleted, stopped=False)
+        finally:
+            self.is_purging = False
+            self._current_worker = None
