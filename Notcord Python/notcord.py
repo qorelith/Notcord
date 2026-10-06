@@ -1,6 +1,6 @@
 """
 Notcord - Discord Message, Media & Account Manager
-Created by Qorelith - v2.2.0
+Created by Qorelith - v1.2.4
 A modern, Discord-inspired desktop application built with CustomTkinter.
 """
 
@@ -120,7 +120,7 @@ class NotcordApp(ctk.CTk):
         if os.path.exists(self.logo_path):
             try:
                 pil_icon = Image.open(self.logo_path)
-                self._icon_photo = ImageTk.PhotoImage(pil_icon.resize((64, 64), Image.LANCZOS))
+                self._icon_photo = ImageTk.PhotoImage(pil_icon.resize((64, 64), Image.LANCZOS), master=self)
             except Exception:
                 self._icon_photo = None
         self._apply_window_icon(self)
@@ -142,7 +142,11 @@ class NotcordApp(ctk.CTk):
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     cfg = json.load(f)
-                    cfg.pop("token", None)  # Ensure no persistent token
+                    # Clean up token from config.json if left by unexpected shutdown
+                    if "token" in cfg:
+                        del cfg["token"]
+                        with open(CONFIG_FILE, "w", encoding="utf-8") as f_out:
+                            json.dump(cfg, f_out, indent=2)
                     return cfg
             except Exception:
                 pass
@@ -151,14 +155,17 @@ class NotcordApp(ctk.CTk):
     def save_config(self):
         try:
             to_save = dict(self.config_data)
-            to_save.pop("token", None)  # Strictly never write token to disk
+            if self.token:
+                to_save["token"] = self.token
+            else:
+                to_save.pop("token", None)
             with open(CONFIG_FILE, "w", encoding="utf-8") as f:
                 json.dump(to_save, f, indent=2)
         except Exception:
             pass
 
     def on_closing(self):
-        """Immediately resets token in RAM, wipes disk cache, and terminates."""
+        """Immediately resets token in RAM, removes token from config.json, wipes disk cache, and terminates."""
         try:
             if self.active_worker and hasattr(self.active_worker, "stop"):
                 self.active_worker.stop()
@@ -168,6 +175,20 @@ class NotcordApp(ctk.CTk):
             pass
         self.token = ""
         self.user_data = None
+        self.config_data.pop("token", None)
+
+        # Strictly remove token from config.json on close as requested
+        try:
+            if os.path.exists(CONFIG_FILE):
+                with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                if "token" in cfg:
+                    del cfg["token"]
+                    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                        json.dump(cfg, f, indent=2)
+        except Exception:
+            pass
+
         AvatarCache.clear_disk_cache()
         self.destroy()
 
@@ -605,14 +626,87 @@ class NotcordApp(ctk.CTk):
         self.btn_connect_discord = ctk.CTkButton(
             center_card,
             text=i18n.t("btn_connect_discord"),
-            height=46,
+            height=44,
             corner_radius=8,
             fg_color=BLURPLE,
             hover_color=BLURPLE_HOVER,
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(size=13, weight="bold"),
             command=self.do_auto_detect_discord
         )
-        self.btn_connect_discord.pack(fill="x", padx=32, pady=(0, 14))
+        self.btn_connect_discord.pack(fill="x", padx=32, pady=(0, 12))
+
+        # --- OR Divider ---
+        divider_row = ctk.CTkFrame(center_card, fg_color="transparent")
+        divider_row.pack(fill="x", padx=32, pady=(0, 10))
+
+        div_left = ctk.CTkFrame(divider_row, fg_color=BORDER_COLOR, height=1)
+        div_left.pack(side="left", fill="x", expand=True, pady=6)
+
+        self.lbl_or = ctk.CTkLabel(
+            divider_row,
+            text=i18n.t("login_or_divider"),
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=TEXT_MUTED
+        )
+        self.lbl_or.pack(side="left", padx=10)
+
+        div_right = ctk.CTkFrame(divider_row, fg_color=BORDER_COLOR, height=1)
+        div_right.pack(side="right", fill="x", expand=True, pady=6)
+
+        # Token Input Section
+        self.lbl_token_title = ctk.CTkLabel(
+            center_card,
+            text=i18n.t("login_token_label"),
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=TEXT_LIGHT
+        )
+        self.lbl_token_title.pack(anchor="w", padx=32, pady=(0, 4))
+
+        token_input_row = ctk.CTkFrame(center_card, fg_color="transparent")
+        token_input_row.pack(fill="x", padx=32, pady=(0, 8))
+
+        self.token_entry = ctk.CTkEntry(
+            token_input_row,
+            placeholder_text=i18n.t("login_token_placeholder"),
+            height=38,
+            show="*",
+            fg_color=BG_RAIL,
+            border_color=BORDER_COLOR,
+            text_color=TEXT_LIGHT,
+            font=ctk.CTkFont(family="Consolas", size=12)
+        )
+        self.token_entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
+
+        self._show_token = False
+        def _toggle_token_visibility():
+            self._show_token = not self._show_token
+            self.token_entry.configure(show="" if self._show_token else "*")
+            self.btn_toggle_token.configure(text="🔒" if self._show_token else "👁")
+
+        self.btn_toggle_token = ctk.CTkButton(
+            token_input_row,
+            text="👁",
+            width=38,
+            height=38,
+            fg_color=BG_RAIL,
+            hover_color=BG_CARD_HOVER,
+            command=_toggle_token_visibility
+        )
+        self.btn_toggle_token.pack(side="right")
+
+        self.btn_login_token = ctk.CTkButton(
+            center_card,
+            text=i18n.t("btn_login_token"),
+            height=38,
+            corner_radius=8,
+            fg_color=BG_SIDEBAR,
+            hover_color=BG_CARD_HOVER,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            command=self.do_token_login
+        )
+        self.btn_login_token.pack(fill="x", padx=32, pady=(0, 10))
+
+        self.token_entry.bind("<Return>", lambda e: self.do_token_login())
 
         self.lbl_login_status = ctk.CTkLabel(
             center_card,
@@ -1473,6 +1567,14 @@ class NotcordApp(ctk.CTk):
             self.lbl_login_desc.configure(text=i18n.t("login_desc"))
         if hasattr(self, "btn_connect_discord"):
             self.btn_connect_discord.configure(text=i18n.t("btn_connect_discord"))
+        if hasattr(self, "lbl_or"):
+            self.lbl_or.configure(text=i18n.t("login_or_divider"))
+        if hasattr(self, "lbl_token_title"):
+            self.lbl_token_title.configure(text=i18n.t("login_token_label"))
+        if hasattr(self, "token_entry"):
+            self.token_entry.configure(placeholder_text=i18n.t("login_token_placeholder"))
+        if hasattr(self, "btn_login_token"):
+            self.btn_login_token.configure(text=i18n.t("btn_login_token"))
         if hasattr(self, "lbl_token_warning"):
             self.lbl_token_warning.configure(text=i18n.t("token_security_note"))
 
@@ -1649,7 +1751,7 @@ class NotcordApp(ctk.CTk):
         title_col = ctk.CTkFrame(banner, fg_color="transparent")
         title_col.pack(side="left", pady=10)
 
-        ctk.CTkLabel(title_col, text="Qorelith - Notcord v2.3", font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"), text_color=TEXT_LIGHT).pack(anchor="w")
+        ctk.CTkLabel(title_col, text="Qorelith - Notcord v1.2.4", font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"), text_color=TEXT_LIGHT).pack(anchor="w")
         ctk.CTkLabel(title_col, text=i18n.t("links_subtitle"), font=ctk.CTkFont(size=11), text_color=TEXT_MUTED).pack(anchor="w")
 
         # Scrollable Cards Container
@@ -1826,11 +1928,11 @@ class NotcordApp(ctk.CTk):
     # ================= AUTHENTICATION =================
 
     def do_direct_login(self, token: str, user_data: dict):
-        """Performs login with a pre-verified token and user_data (token never shown or stored)."""
+        """Performs login with a verified token and user_data."""
         self.token = token
         self.user_data = user_data
-        # Never save token to disk
-        self.config_data.pop("token", None)
+        # Save token into config.json while active as requested
+        self.config_data["token"] = token
         self.save_config()
 
         username = user_data.get("username", "Unknown")
@@ -1860,25 +1962,48 @@ class NotcordApp(ctk.CTk):
             user_id=user_id,
             on_log=self.append_log,
             on_tick=self.on_sd_tick,
-            on_complete=self.on_sd_complete
+            on_complete=self.on_sd_complete,
+            on_purge_start=self.on_sd_purge_start,
+            on_purge_stop=self.on_sd_purge_stop
         )
 
         self.load_dms()
         self.check_favorite_gifs_count()
 
     def _set_user_avatar_img(self, pil_img: Optional[Image.Image]):
-        if pil_img:
-            ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(34, 34))
-            self._user_avatar_ctk = ctk_img  # Prevent GC from collecting CTkImage
-            self.lbl_user_avatar.configure(text="", image=ctk_img)
-        else:
-            self._user_avatar_ctk = None
-            self.lbl_user_avatar.configure(text="👤", image=None)
+        try:
+            if pil_img and hasattr(self, "lbl_user_avatar") and self.lbl_user_avatar.winfo_exists():
+                ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(34, 34))
+                self._user_avatar_ctk = ctk_img  # Prevent GC from collecting CTkImage
+                self.lbl_user_avatar.configure(text="", image=ctk_img)
+            else:
+                self._user_avatar_ctk = None
+                if hasattr(self, "lbl_user_avatar") and self.lbl_user_avatar.winfo_exists():
+                    self.lbl_user_avatar.configure(text="👤", image=None)
+        except Exception:
+            pass
 
     def do_logout(self):
         self.token = ""
         self.user_data = None
         self.selected_target = None
+        self.config_data.pop("token", None)
+
+        # Remove token from config.json immediately on logout
+        try:
+            if os.path.exists(CONFIG_FILE):
+                with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                if "token" in cfg:
+                    del cfg["token"]
+                    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                        json.dump(cfg, f, indent=2)
+        except Exception:
+            pass
+
+        if hasattr(self, "token_entry"):
+            self.token_entry.delete(0, "end")
+
         if self.self_destruct_mgr:
             self.self_destruct_mgr.cancel()
             self.self_destruct_mgr = None
@@ -1982,10 +2107,13 @@ class NotcordApp(ctk.CTk):
                 )
 
     def _apply_btn_image(self, btn: ctk.CTkButton, pil_img: Optional[Image.Image]):
-        if pil_img and btn.winfo_exists():
-            ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(30, 30))
-            self._avatar_refs[id(btn)] = ctk_img  # Prevent GC from collecting CTkImage
-            btn.configure(image=ctk_img, compound="left")
+        try:
+            if pil_img and btn.winfo_exists():
+                ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(30, 30))
+                self._avatar_refs[id(btn)] = ctk_img  # Prevent GC from collecting CTkImage
+                btn.configure(image=ctk_img, compound="left")
+        except Exception:
+            pass
 
     def load_servers(self):
         self.clear_sidebar()
@@ -2128,13 +2256,17 @@ class NotcordApp(ctk.CTk):
         self.append_log("info", f"Selected target: {target['name']} (ID: {target['id']})")
 
     def _set_target_avatar_img(self, pil_img: Optional[Image.Image], fallback: str = "💬"):
-        if pil_img:
-            ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(38, 38))
-            self._target_avatar_ctk = ctk_img  # Prevent GC from collecting CTkImage
-            self.lbl_target_avatar.configure(text="", image=ctk_img)
-        else:
-            self._target_avatar_ctk = None
-            self.lbl_target_avatar.configure(text=fallback, image=None)
+        try:
+            if pil_img and hasattr(self, "lbl_target_avatar") and self.lbl_target_avatar.winfo_exists():
+                ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(38, 38))
+                self._target_avatar_ctk = ctk_img  # Prevent GC from collecting CTkImage
+                self.lbl_target_avatar.configure(text="", image=ctk_img)
+            else:
+                self._target_avatar_ctk = None
+                if hasattr(self, "lbl_target_avatar") and self.lbl_target_avatar.winfo_exists():
+                    self.lbl_target_avatar.configure(text=fallback, image=None)
+        except Exception:
+            pass
 
     # ================= MESSAGE PURGING OPERATION =================
 
@@ -2239,10 +2371,17 @@ class NotcordApp(ctk.CTk):
         self.active_worker.start()
 
     def stop_active_operation(self):
+        stopped_any = False
+        if self.self_destruct_mgr and (self.self_destruct_mgr.is_armed or self.self_destruct_mgr.is_purging):
+            self.self_destruct_mgr.cancel()
+            stopped_any = True
         if self.active_worker and hasattr(self.active_worker, "stop"):
             self.append_log("warn", "Stopping purge operation...")
             self.active_worker.stop()
             self.btn_stop.configure(state="disabled")
+            stopped_any = True
+        if stopped_any and not (self.active_worker and hasattr(self.active_worker, "stop")):
+            self.btn_stop.configure(state="disabled", fg_color=BG_RAIL)
 
     def on_worker_progress(self, scanned, deleted, skipped, errors, rate_limits, elapsed):
         self.safe_ui(lambda: self.update_stats_display(scanned, deleted, skipped, errors, rate_limits, elapsed))
@@ -2334,7 +2473,13 @@ class NotcordApp(ctk.CTk):
         def _do_arm():
             self.btn_sd_arm.configure(state="disabled")
             self.btn_sd_detonate.configure(state="normal")
-            self.btn_sd_cancel.configure(state="normal")
+            self.btn_sd_cancel.configure(
+                state="normal",
+                text=i18n.t("sd_btn_cancel"),
+                fg_color=BG_SIDEBAR,
+                hover_color=BG_CARD_HOVER
+            )
+            self.btn_stop.configure(state="normal", fg_color=RED_ACCENT)
             self.self_destruct_mgr.arm(
                 duration_seconds=secs,
                 scope=scope_code,
@@ -2355,7 +2500,13 @@ class NotcordApp(ctk.CTk):
                 self.lbl_sd_countdown.configure(text=f"⏱ {i18n.t('sd_status_idle')}", text_color=TEXT_MUTED)
                 self.btn_sd_arm.configure(state="normal")
                 self.btn_sd_detonate.configure(state="disabled")
-                self.btn_sd_cancel.configure(state="disabled")
+                self.btn_sd_cancel.configure(
+                    state="disabled",
+                    text=i18n.t("sd_btn_cancel"),
+                    fg_color=BG_SIDEBAR,
+                    hover_color=BG_CARD_HOVER
+                )
+                self.btn_stop.configure(state="disabled", fg_color=BG_RAIL)
             else:
                 self.lbl_sd_countdown.configure(
                     text=f"⏳ {i18n.t('sd_status_armed', time_left=formatted)}",
@@ -2363,13 +2514,63 @@ class NotcordApp(ctk.CTk):
                 )
         self.safe_ui(_update)
 
-    def on_sd_complete(self, total_deleted: int):
+    def on_sd_purge_start(self):
+        def _ui():
+            self.lbl_sd_countdown.configure(
+                text=f"💥 {i18n.t('sd_status_purging')}",
+                text_color=YELLOW_ACCENT
+            )
+            self.btn_sd_arm.configure(state="disabled")
+            self.btn_sd_detonate.configure(state="disabled")
+            self.btn_sd_cancel.configure(
+                state="normal",
+                text=f"⏹ {i18n.t('btn_stop')}",
+                fg_color=RED_ACCENT,
+                hover_color=RED_HOVER
+            )
+            self.btn_stop.configure(state="normal", fg_color=RED_ACCENT)
+            self.status_dot.configure(text_color=YELLOW_ACCENT)
+            self.status_text.configure(text=i18n.t("status_running"))
+        self.safe_ui(_ui)
+
+    def on_sd_purge_stop(self, total_deleted: int):
+        def _ui():
+            self.lbl_sd_countdown.configure(
+                text=f"⏹ {i18n.t('status_stopped')} ({total_deleted} msg)",
+                text_color=TEXT_MUTED
+            )
+            self.btn_sd_arm.configure(state="normal")
+            self.btn_sd_detonate.configure(state="disabled")
+            self.btn_sd_cancel.configure(
+                state="disabled",
+                text=i18n.t("sd_btn_cancel"),
+                fg_color=BG_SIDEBAR,
+                hover_color=BG_CARD_HOVER
+            )
+            self.btn_stop.configure(state="disabled", fg_color=BG_RAIL)
+            self.status_dot.configure(text_color=TEXT_MUTED)
+            self.status_text.configure(text=i18n.t("status_stopped"))
+        self.safe_ui(_ui)
+
+    def on_sd_complete(self, total_deleted: int, stopped: bool = False):
+        if stopped:
+            self.on_sd_purge_stop(total_deleted)
+            return
         def _done():
             self.lbl_sd_countdown.configure(text=f"💥 {i18n.t('sd_status_completed')} ({total_deleted} msg)", text_color=GREEN_ACCENT)
             self.btn_sd_arm.configure(state="normal")
             self.btn_sd_detonate.configure(state="disabled")
-            self.btn_sd_cancel.configure(state="disabled")
-            self.show_alert(i18n.t("sd_complete_title"), i18n.t("sd_complete_msg", count=total_deleted))
+            self.btn_sd_cancel.configure(
+                state="disabled",
+                text=i18n.t("sd_btn_cancel"),
+                fg_color=BG_SIDEBAR,
+                hover_color=BG_CARD_HOVER
+            )
+            self.btn_stop.configure(state="disabled", fg_color=BG_RAIL)
+            self.status_dot.configure(text_color=GREEN_ACCENT)
+            self.status_text.configure(text=i18n.t("status_completed"))
+            if total_deleted > 0:
+                self.show_alert(i18n.t("sd_complete_title"), i18n.t("sd_complete_msg", count=total_deleted))
         self.safe_ui(_done)
 
     def trigger_detonate_now(self):
@@ -2416,6 +2617,46 @@ class NotcordApp(ctk.CTk):
             self.safe_ui(_callback)
 
         threading.Thread(target=_scan, daemon=True).start()
+
+    def do_token_login(self):
+        """Validates manual token input, connects, and temporarily stores token in config.json."""
+        raw_token = self.token_entry.get().strip().strip("\"' ")
+        if not raw_token:
+            if hasattr(self, "lbl_login_status"):
+                self.lbl_login_status.configure(text=i18n.t("login_token_empty"), text_color=RED_ACCENT)
+            return
+
+        self.btn_login_token.configure(state="disabled", text=i18n.t("login_token_verifying"))
+        if hasattr(self, "btn_connect_discord"):
+            self.btn_connect_discord.configure(state="disabled")
+        if hasattr(self, "lbl_login_status"):
+            self.lbl_login_status.configure(text=i18n.t("login_token_verifying"), text_color=TEXT_MUTED)
+
+        def _verify():
+            ok, user_data, err = verify_token(raw_token)
+            def _cb():
+                self.btn_login_token.configure(state="normal", text=i18n.t("btn_login_token"))
+                if hasattr(self, "btn_connect_discord"):
+                    self.btn_connect_discord.configure(state="normal")
+                if ok and user_data:
+                    username = user_data.get("username", "Unknown")
+                    global_name = user_data.get("global_name") or username
+                    if hasattr(self, "lbl_login_status"):
+                        self.lbl_login_status.configure(
+                            text=i18n.t("auto_detect_found", user=f"{global_name} (@{username})"),
+                            text_color=GREEN_ACCENT
+                        )
+                    # Login directly — saves token to config.json and switches to main view
+                    self.after(300, lambda: self.do_direct_login(raw_token, user_data))
+                else:
+                    if hasattr(self, "lbl_login_status"):
+                        self.lbl_login_status.configure(
+                            text=f"{i18n.t('login_token_invalid')} ({err or '401 Unauthorized'})",
+                            text_color=RED_ACCENT
+                        )
+            self.safe_ui(_cb)
+
+        threading.Thread(target=_verify, daemon=True).start()
 
     # ================= RANDOM DELAY TOGGLE =================
 
@@ -2720,11 +2961,28 @@ class NotcordApp(ctk.CTk):
         ctk.CTkButton(dialog, text=i18n.t("btn_ok"), width=100, height=34, fg_color=RED_ACCENT, hover_color=RED_HOVER, command=dialog.destroy).pack(pady=(0, 16))
 
 
+def unblock_self():
+    """Removes Zone.Identifier (Mark of the Web) from the executable so SmartScreen won't trigger on subsequent runs."""
+    if sys.platform.startswith("win"):
+        try:
+            targets = []
+            if getattr(sys, "frozen", False) and sys.executable:
+                targets.append(sys.executable)
+            targets.append(os.path.abspath("Notcord.exe"))
+            for target in targets:
+                zone_stream = f"{target}:Zone.Identifier"
+                if os.path.exists(zone_stream):
+                    os.remove(zone_stream)
+        except Exception:
+            pass
+
+
 def main():
+    unblock_self()
     if sys.platform.startswith("win"):
         try:
             import ctypes
-            myappid = "qorelith.notcord.discordmanager.2.2.0"
+            myappid = "qorelith.notcord.discordmanager.1.2.4"
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
         except Exception:
             pass
